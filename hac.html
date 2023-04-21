@@ -1,0 +1,828 @@
+<html lang="tr"><head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<!-- external style libraries -->
+	<link href="//fonts.googleapis.com/css?family=Roboto:400,300,500,700,100&amp;subset=latin,latin-ext" rel="stylesheet" type="text/css">
+	<link rel="stylesheet" href="/font-awesome/css/font-awesome.min.css">
+	<link rel="shortcut icon" href="https://www.metu.edu.tr/sites/all/themes/odtu/favicon.ico" type="image/vnd.microsoft.icon">
+	<link rel="stylesheet" href="/style/bootstrap.min.css">
+	<link rel="stylesheet" href="/style/style.css">
+	<link rel="stylesheet" href="/style/perfect-scrollbar.min.css">
+	<link rel="stylesheet" href="/style/bootstrap-select.min.css">
+
+	<script src="/js/jquery-3.6.0.min.js"></script>
+	<script src="/js/bootstrap-select.min.js"></script>
+	<script src="/js/i18n/defaults-tr_TR.js"></script>
+	<script src="/js/functions.js"></script>
+	<script src="/js/list.min.js"></script>
+	<script src="/js/perfect-scrollbar.jquery.min.js"></script>
+	<script src="/js/bootstrap.min.js"></script>
+
+	<!-- Leaflet -->
+	<link rel="stylesheet" href="/style/leaflet.css">
+	<script src="/js/leaflet/leaflet.js"></script>
+
+	<script>
+		$(function() {
+			$('.list_wrap').perfectScrollbar();
+		});
+	</script>
+	<title>ODTÜ Harita</title>
+
+
+	<script type="text/javascript">
+		var gmarkers = [];
+		var i = 0;
+		var side_bar_html = "";
+		var map;
+		var type_id = 0;
+
+		//get place id	
+		single_place_id = window.location.pathname.split('/');
+
+		function initialize() {
+			map = L.map('map-canvas').setView([39.89488839207621, 32.78000593185425], 16);
+		
+			L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+				attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+				maxZoom: 19,	
+			}).addTo(map);
+			//var control = new GSmallMapControl();
+			//var topRight = new GControlPosition(G_ANCHOR_BOTTOM_RIGHT);
+			//map.addControl(control, topRight);
+
+			//var gorunum = new GMapTypeControl();
+			//map.addControl(gorunum, topRight);
+
+			//map.setMapType(G_NORMAL_MAP);
+
+			//var center = new google.maps.LatLng(39.89488839207621, 32.78000593185425);
+			//map.setCenter(center, 15);
+
+			/*var marker = new google.maps.Marker({
+				position: new google.maps.LatLng(37.4419, -122.1419),
+				map: map
+			});*/
+
+			if (single_place_id[2] == undefined) {
+				getMarker();
+			} else {
+				getPlace();
+			}
+			$(".back_to_black").hide();
+		}
+
+		window.addEventListener('load', (event) => {
+			initialize();
+		});
+
+		function getMarker() {
+			console.log("tüm harita oluşturuluyor");
+			$.ajax({
+				url: "/getmarker.php",
+				type: "post",
+				success: function(data) {
+					$('#result').html(data);
+				}
+			});
+		}
+
+		function getPlace() {
+			console.log("yer/place oluşturuluyor");
+			$.ajax({
+				type: "post",
+				url: "/getmarker.php",
+				data: {
+					marker: single_place_id[2],
+				},
+				success: function(data) {
+					$('#result').html(data);
+					$(".list_left").hide();
+					$(".list_left_close").hide();
+					$("#map-canvas").addClass("leftState");
+				}
+			});
+
+		}
+
+		$(document).ready(function() {
+			$(".back_to_black,.go-home").click(function() {
+				if (single_place_id[2]) {
+					window.location.href = "/";
+				} else {
+					$(".categories_ul").show();
+					$('#side_bar').html("");
+					$(".back_to_black").hide();
+					//removeMarker();
+					clearMarkers();
+					//map.clearOverlays();
+					//map.closeInfoWindow();
+				}
+			});
+
+			$(".categories_ul li:not(.exception) a").click(function(e) {
+				console.log("kategori seçildi")
+				e.preventDefault();
+				//removeMarker();
+				clearMarkers();
+				//map.clearOverlays();
+				//map.closeInfoWindow();
+
+				var category_header = $(this).find("div").html();
+				type_id = $(this).data("type");
+
+				$.ajax({
+					type: "post",
+					url: "/getmarker.php",
+					data: {
+						type: type_id,
+					},
+					success: function(data) {
+						side_bar_html = "";
+						$(".back_to_black").show();
+						$(".category-header").html(category_header);
+						$(".category-icon").attr("src", "images/" + type_id + ".png");
+
+						$(".categories_ul").hide();
+						$('#result').html(data);
+					}
+				});
+			});
+		});
+
+		let markers = [];
+
+		function createMarker(lat, long, html, icon_number, desc, icon_width, icon_height, place_id, place_url) {
+			//console.log("marker yaratılıyor");
+			var point = new L.LatLng(lat, long);
+			var icon_width = 39;
+			var icon_height = 52;
+
+			image = "/images/mapicons/" + icon_number + ".png";
+			/*
+			var tinyIcon = new GIcon(); 
+			tinyIcon.iconSize = new GSize(icon_width, icon_height); 
+			tinyIcon.shadowSize = new GSize(22, 20); 
+			tinyIcon.iconAnchor = new GPoint(20, 52); 
+			tinyIcon.infoWindowAnchor = new GPoint(5, 1); */
+
+			if (place_url) {
+				desc = desc + '<br/><br/><a href="/yer/' + place_id + '/' + place_url + '">Harita Linki</a>';
+			}
+
+			//var marker = new GMarker(point,tinyIcon); 
+
+			/*GEvent.addListener(marker, "click", function() { 
+				marker.openInfoWindowHtml(desc);
+			 });*/
+
+			// marker.openInfoWindowHtml(desc);
+
+
+
+			//map.addOverlay(marker);
+
+
+			// var marker = new google.maps.Marker({
+			// 	position: new google.maps.LatLng({
+			// 		lat: parseFloat(lat),
+			// 		lng: parseFloat(long)
+			// 	}),
+			// 	map: map,
+			// 	icon: image,
+			// 	title: desc
+			// });
+
+			// var infoWindow = new google.maps.InfoWindow();
+			// google.maps.event.addListener(marker, 'click', function() {
+			// 	infoWindow.setContent(desc);
+			// 	infoWindow.open(map, marker);
+			// });
+
+			var cstIcon = L.icon({
+				iconUrl: image,
+				iconSize:[icon_width, icon_height],
+			});
+
+			var marker = L.marker([parseFloat(lat), parseFloat(long)], {icon: cstIcon}).addTo(map)
+			.bindPopup(desc);
+
+
+			if (type_id != 0 || single_place_id[2]) {
+				gmarkers[i] = marker;
+				side_bar_html += '<a class="name" href="javascript:show_info(' + i + ',' + lat + ',' + long + ')"><li>' + html + '</li></a>';
+				$('#side_bar').html(side_bar_html);
+				i++;
+			}
+			markers.push(marker);
+		}
+
+		function setMapOnAll(map) {
+			for (let i = 0; i < markers.length; i++) {
+				markers[i].addTo(map);
+			}
+		}
+
+		function clearMarkers() {
+			for (let i = 0; i < markers.length; i++) {
+				map.removeLayer(markers[i]);
+			}
+		}
+
+		function removeMarker(marker) {
+			console.log("marker siliniyor");
+			map.overlayMapTypes.setAt(0, null);
+			//map.clearOverlays();
+		}
+	</script>
+
+	</head>
+
+<body>
+
+	<div class="sidebar">
+		<div class="header">
+			<div class="logo">
+				<a class="go-home" style="cursor:pointer"><img src="/images/logo.svg" alt="ODTÜ/METU Harita Servisi"></a>
+			</div>
+			<span class="page_title">Harita Servisi</span>
+			<a href="https://map.metu.edu.tr" class="lang-switcher">English</a>
+		</div>
+
+		<div class="list_left_close">
+			<i class="fa fa-angle-left"></i>
+		</div>
+
+		<div class="list_left" id="categories">
+			<div class="search_area ">
+				<input class="search_text search" name="q" type="text" value="" placeholder="Ara" autocomplete="off" onpaste="return false;">
+			</div>
+
+			<div class="list_wrap ps-container ps-active-y" data-ps-id="380f5e8a-a1d0-686b-1937-e549117e5948">
+				<!-- active list header  -->
+				<a class="back_to_black" style="display: none;">
+					<div class="active_list"><img src="#" class="category-icon">
+						<div class="category-header"></div>
+					</div>
+				</a>
+				<div class="clearfix"></div>
+				<!-- end active list header -->
+
+				<ul class="building_list">
+					<ul class="list hide"><li> <a href="/yer/212/1.-yurt"><div class="name">1. Yurt</div></a>  </li><li> <a href="/yer/536/1.-yurt"><div class="name">1. Yurt</div></a>  </li><li> <a href="/yer/277/1.-yurt-kantini"><div class="name">1. Yurt Kantini</div></a>  </li><li> <a href="/yer/431/1.-yurt-otoparki"><div class="name">1. Yurt Otoparkı</div></a>  </li><li> <a href="/yer/333/1.-yurt-pc-salonu"><div class="name">1. Yurt PC Salonu</div></a>  </li><li> <a href="/yer/755/10-nisan-polis-karakolu"><div class="name">10 Nisan Polis Karakolu</div></a>  </li><li> <a href="/yer/634/19.-yurt"><div class="name">19. Yurt</div></a>  </li><li> <a href="/yer/851/19.-yurt-kantini<br>sebastian-cafe"><div class="name">19. Yurt Kantini<br>Sebastian Cafe</div></a>  </li><li> <a href="/yer/1099/19.yurt"><div class="name">19.Yurt</div></a>  </li><li> <a href="/yer/1007/2-aralik-aniti"><div class="name">2 Aralık Anıtı </div></a>  </li><li> <a href="/yer/213/2.-yurt"><div class="name">2. Yurt</div></a>  </li><li> <a href="/yer/537/2.-yurt"><div class="name">2. Yurt</div></a>  </li><li> <a href="/yer/279/2.-yurt-kantini"><div class="name">2. Yurt Kantini</div></a>  </li><li> <a href="/yer/432/2.-yurt-otoparki"><div class="name">2. Yurt Otoparkı</div></a>  </li><li> <a href="/yer/334/2.-yurt-pc-salonlari-1-2-3"><div class="name">2. Yurt PC Salonları 1-2-3</div></a>  </li><li> <a href="/yer/214/3.-yurt"><div class="name">3. Yurt</div></a>  </li><li> <a href="/yer/538/3.-yurt"><div class="name">3. Yurt</div></a>  </li><li> <a href="/yer/281/3.-yurt-kantini"><div class="name">3. Yurt Kantini</div></a>  </li><li> <a href="/yer/1161/3.-yurt-mescidi"><div class="name">3. Yurt Mescidi</div></a>  </li><li> <a href="/yer/427/3.-yurt-otoparki"><div class="name">3. Yurt Otoparkı</div></a>  </li><li> <a href="/yer/1021/3.yurt"><div class="name">3.Yurt</div></a>  </li><li> <a href="/yer/215/4.-yurt"><div class="name">4. Yurt</div></a>  </li><li> <a href="/yer/539/4.-yurt"><div class="name">4. Yurt</div></a>  </li><li> <a href="/yer/282/4.-yurt-kantini"><div class="name">4. Yurt Kantini</div></a>  </li><li> <a href="/yer/1163/4.-yurt-mescidi"><div class="name">4. Yurt Mescidi</div></a>  </li><li> <a href="/yer/1022/4.yurt"><div class="name">4.Yurt</div></a>  </li><li> <a href="/yer/216/5.-yurt"><div class="name">5. Yurt</div></a>  </li><li> <a href="/yer/540/5.-yurt"><div class="name">5. Yurt</div></a>  </li><li> <a href="/yer/283/5.-yurt-kantini"><div class="name">5. Yurt Kantini</div></a>  </li><li> <a href="/yer/1023/5.yurt"><div class="name">5.Yurt</div></a>  </li><li> <a href="/yer/176/6.-yurt"><div class="name">6. Yurt</div></a>  </li><li> <a href="/yer/545/6.-yurt"><div class="name">6. Yurt</div></a>  </li><li> <a href="/yer/287/6.-yurt-kantini"><div class="name">6. Yurt Kantini</div></a>  </li><li> <a href="/yer/1162/6.-yurt-mescidi"><div class="name">6. Yurt Mescidi</div></a>  </li><li> <a href="/yer/424/6.-yurt-otoparki"><div class="name">6. Yurt Otoparkı</div></a>  </li><li> <a href="/yer/308/7.-yurt"><div class="name">7. Yurt</div></a>  </li><li> <a href="/yer/309/7.-yurt"><div class="name">7. Yurt</div></a>  </li><li> <a href="/yer/310/7.-yurt-kantini"><div class="name">7. Yurt Kantini</div></a>  </li><li> <a href="/yer/1164/7.-yurt-mescidi"><div class="name">7. Yurt Mescidi</div></a>  </li><li> <a href="/yer/426/7.-yurt-otoparki"><div class="name">7. Yurt Otoparkı</div></a>  </li><li> <a href="/yer/178/8.-yurt"><div class="name">8. Yurt</div></a>  </li><li> <a href="/yer/542/8.-yurt"><div class="name">8. Yurt</div></a>  </li><li> <a href="/yer/284/8.-yurt-kantini"><div class="name">8. Yurt Kantini</div></a>  </li><li> <a href="/yer/425/8.-yurt-otopark-alani"><div class="name">8. Yurt Otopark Alanı</div></a>  </li><li> <a href="/yer/179/9.-yurt"><div class="name">9. Yurt</div></a>  </li><li> <a href="/yer/546/9.-yurt"><div class="name">9. Yurt</div></a>  </li><li> <a href="/yer/286/9.-yurt-kantini"><div class="name">9. Yurt Kantini</div></a>  </li><li> <a href="/yer/133/a1-kapisi"><div class="name">A1 Kapısı</div></a>  </li><li> <a href="/yer/1110/a1-kapisi"><div class="name">A1 Kapısı</div></a>  </li><li> <a href="/yer/565/a1-kapisi-otobus-duragi"><div class="name">A1 Kapısı Otobüs Durağı</div></a>  </li><li> <a href="/yer/502/a1-kapisi-otoparki"><div class="name">A1 Kapısı Otoparkı</div></a>  </li><li> <a href="/yer/1025/a1-kapi"><div class="name">A1-Kapi</div></a>  </li><li> <a href="/yer/797/a2-cikis-kapisi"><div class="name">A2 Çıkış Kapısı</div></a>  </li><li> <a href="/yer/1072/a2-kapisi"><div class="name">A2 Kapısı</div></a>  </li><li> <a href="/yer/978/a2-kapisi-uydu-otoparki"><div class="name">A2 Kapısı Uydu Otoparkı</div></a>  </li><li> <a href="/yer/843/a2-metro-cikisi-otobus-duragi"><div class="name">A2 Metro Çıkışı Otobüs Durağı</div></a>  </li><li> <a href="/yer/1071/a2-metro-girisi"><div class="name">A2 Metro Girişi</div></a>  </li><li> <a href="/yer/136/a4-kapisi"><div class="name">A4 Kapısı</div></a>  </li><li> <a href="/yer/1108/a4-kapisi"><div class="name">A4 Kapısı</div></a>  </li><li> <a href="/yer/418/a4-kapisi-otoparki"><div class="name">A4 Kapısı Otoparkı</div></a>  </li><li> <a href="/yer/135/a7-kapisi"><div class="name">A7 Kapısı</div></a>  </li><li> <a href="/yer/1109/a7-kapisi"><div class="name">A7 Kapısı</div></a>  </li><li> <a href="/yer/990/a8-kapisi"><div class="name">A8 Kapısı</div></a>  </li><li> <a href="/yer/1093/a8-teknokent-kapisi"><div class="name">A8 Teknokent Kapısı</div></a>  </li><li> <a href="/yer/991/a9-kapisi"><div class="name">A9 Kapısı</div></a>  </li><li> <a href="/yer/1035/acik-havuz"><div class="name">Açık Havuz</div></a>  </li><li> <a href="/yer/126/acik-tenis-kortlari"><div class="name">Açık Tenis Kortları</div></a>  </li><li> <a href="/yer/153/acik-tenis-kortlari"><div class="name">Açık Tenis Kortları</div></a>  </li><li> <a href="/yer/562/acik-tenis-kortlari"><div class="name">Açık Tenis Kortları</div></a>  </li><li> <a href="/yer/1060/acik-tenis-kortlari-alt-kat"><div class="name">Açık Tenis Kortları Alt Kat</div></a>  </li><li> <a href="/yer/1059/acik-tenis-kortlari-bufe"><div class="name">Açık Tenis Kortları Büfe</div></a>  </li><li> <a href="/yer/181/acik-yuzme-havuzu"><div class="name">Açık Yüzme Havuzu</div></a>  </li><li> <a href="/yer/1143/ada-lovelace"><div class="name">Ada Lovelace</div></a>  </li><li> <a href="/yer/605/afet-yonetimi-arastirma-ve-uygulama-merkezi-(afet)"><div class="name">Afet Yönetimi Araştırma ve Uygulama Merkezi (AFET)</div></a>  </li><li> <a href="/yer/1073/agaclandirma-ve-cevre-duzenleme-mudurlugu"><div class="name">Ağaclandırma ve Çevre Düzenleme Müdürlüğü</div></a>  </li><li> <a href="/yer/1074/agaclandirma-ve-cevre-duzenleme-mudurlugu-a-blok"><div class="name">Ağaclandırma ve Çevre Düzenleme Müdürlüğü A Blok</div></a>  </li><li> <a href="/yer/1082/agaclandirma-ve-cevre-duzenleme-mudurlugu-atolye"><div class="name">Ağaclandırma ve Çevre Düzenleme Müdürlüğü Atölye</div></a>  </li><li> <a href="/yer/1075/agaclandirma-ve-cevre-duzenleme-mudurlugu-b-blok"><div class="name">Ağaclandırma ve Çevre Düzenleme Müdürlüğü B Blok</div></a>  </li><li> <a href="/yer/1076/agaclandirma-ve-cevre-duzenleme-mudurlugu-c-blok"><div class="name">Ağaclandırma ve Çevre Düzenleme Müdürlüğü C Blok</div></a>  </li><li> <a href="/yer/373/agaclandirma-mudurlugu"><div class="name">Ağaçlandırma Müdürlüğü</div></a>  </li><li> <a href="/yer/929/aikido-toplulugu"><div class="name">Aikido Topluluğu</div></a>  </li><li> <a href="/yer/826/akademik-yazi-merkezi"><div class="name">Akademik Yazı Merkezi</div></a>  </li><li> <a href="/yer/348/akbank"><div class="name">Akbank</div></a>  </li><li> <a href="/yer/564/akilli-sinif"><div class="name">Akıllı Sınıf</div></a>  </li><li> <a href="/yer/1145/alan-m.-turing"><div class="name">Alan M. Turing</div></a>  </li><li> <a href="/yer/1127/albert-einstein"><div class="name">Albert Einstein</div></a>  </li><li> <a href="/yer/1139/alessandro-volta"><div class="name">Alessandro Volta</div></a>  </li><li> <a href="/yer/856/amator-astronomi--toplulugu"><div class="name">Amatör Astronomi  Topluluğu</div></a>  </li><li> <a href="/yer/857/amator-fotografcilik-toplulugu"><div class="name">Amatör Fotoğrafcılık Topluluğu</div></a>  </li><li> <a href="/yer/1125/amedeo-avogadro"><div class="name">Amedeo Avogadro</div></a>  </li><li> <a href="/yer/626/amerikan-futbol-sahasi"><div class="name">Amerikan Futbol Sahası</div></a>  </li><li> <a href="/yer/191/amerikan-futbolu-sahasi"><div class="name">Amerikan Futbolu Sahası</div></a>  </li><li> <a href="/yer/966/amerikan-futbolu-takimi-(erkek)"><div class="name">Amerikan Futbolu Takımı (Erkek)</div></a>  </li><li> <a href="/yer/1138/andre-m.-ampere"><div class="name">Andre M. Ampere</div></a>  </li><li> <a href="/yer/858/ar-ge--toplulugu"><div class="name">Ar-Ge  Topluluğu</div></a>  </li><li> <a href="/yer/385/arastirma-gorevlileri-konutu"><div class="name">Araştırma Görevlileri Konutu</div></a>  </li><li> <a href="/yer/599/arastirma-gorevlileri-konutu"><div class="name">Araştırma Görevlileri Konutu</div></a>  </li><li> <a href="/yer/453/arastirma-gorevlileri-konutu-otoparki"><div class="name">Araştırma Görevlileri Konutu Otoparkı</div></a>  </li><li> <a href="/yer/454/arastirma-gorevlileri-konutu-otoparki-2"><div class="name">Araştırma Görevlileri Konutu Otoparkı-2</div></a>  </li><li> <a href="/yer/798/arastirma-parki"><div class="name">Araştırma Parkı</div></a>  </li><li> <a href="/yer/986/aritma-tesisi"><div class="name">Arıtma Tesisi</div></a>  </li><li> <a href="/yer/346/arkeoloji-muzesi"><div class="name">Arkeoloji Müzesi</div></a>  </li><li> <a href="/yer/859/arkeoloji-toplulugu"><div class="name">Arkeoloji Topluluğu</div></a>  </li><li> <a href="/yer/584/arkeometri-bolumu"><div class="name">Arkeometri Bölümü</div></a>  </li><li> <a href="/yer/683/arsiv-binalari"><div class="name">Arşiv Binaları</div></a>  </li><li> <a href="/yer/202/aselsan"><div class="name">Aselsan</div></a>  </li><li> <a href="/yer/460/aselsan-otoparki"><div class="name">Aselsan Otoparkı</div></a>  </li><li> <a href="/yer/1015/ataturk-aniti"><div class="name">Atatürk Anıtı</div></a>  </li><li> <a href="/yer/860/ataturkcu-dusunce-toplulugu"><div class="name">Atatürkçü Düşünce Topluluğu</div></a>  </li><li> <a href="/yer/936/aticilik"><div class="name">Atıcılık</div></a>  </li><li> <a href="/yer/937/atletizm-(kros)-takimi"><div class="name">Atletizm (Kros) Takımı</div></a>  </li><li> <a href="/yer/980/atolyeler"><div class="name">Atölyeler</div></a>  </li><li> <a href="/yer/861/avrasya-toplulugu"><div class="name">Avrasya Topluluğu</div></a>  </li><li> <a href="/yer/557/avrupa-dokumantasyon-merkezi"><div class="name">Avrupa Dokümantasyon Merkezi</div></a>  </li><li> <a href="/yer/862/avrupa-ogrencileri-forumu--toplulugu"><div class="name">Avrupa Öğrencileri Forumu  Topluluğu</div></a>  </li><li> <a href="/yer/751/ayasli-arastirma-merkezi"><div class="name">Ayaslı Araştırma Merkezi</div></a>  </li><li> <a href="/yer/412/aysel-sabuncu-yasam-merkezi"><div class="name">Aysel Sabuncu Yaşam Merkezi</div></a>  </li><li> <a href="/yer/1111/aysel-sabuncu-yasam-merkezi"><div class="name">Aysel Sabuncu Yaşam Merkezi</div></a>  </li><li> <a href="/yer/928/badminton-takimi"><div class="name">Badminton Takımı</div></a>  </li><li> <a href="/yer/435/bankalar-bolgesi-otoparki"><div class="name">Bankalar Bölgesi Otoparkı</div></a>  </li><li> <a href="/yer/1011/banyodan-sonra-ayaklarini-kurulayan-kadin"><div class="name">Banyodan Sonra Ayaklarını Kurulayan Kadın</div></a>  </li><li> <a href="/yer/407/baraka-spor-salonu"><div class="name">Baraka Spor Salonu</div></a>  </li><li> <a href="/yer/609/baraka-spor-salonu"><div class="name">Baraka Spor Salonu</div></a>  </li><li> <a href="/yer/783/baraka-spor-salonu-is-bankasi-atm"><div class="name">Baraka Spor Salonu İş Bankası ATM</div></a>  </li><li> <a href="/yer/430/baraka-spor-salonu-otoparki"><div class="name">Baraka Spor Salonu Otoparkı</div></a>  </li><li> <a href="/yer/129/basketbol-sahalari"><div class="name">Basketbol Sahaları</div></a>  </li><li> <a href="/yer/406/basketbol-sahasi"><div class="name">Basketbol Sahası</div></a>  </li><li> <a href="/yer/938/basketbol-takimi"><div class="name">Basketbol Takımı</div></a>  </li><li> <a href="/yer/847/bati-yurtlar-otobus-duragi"><div class="name">Batı Yurtlar Otobüs Durağı</div></a>  </li><li> <a href="/yer/819/beden-egitimi-ve-spor-bolumu"><div class="name">Beden Eğitimi ve Spor Bölümü</div></a>  </li><li> <a href="/yer/1026/beseri-bilimler-binasi-arka"><div class="name">Beseri Bilimler Binası Arka</div></a>  </li><li> <a href="/yer/1027/beseri-bilimler-binasi-on"><div class="name">Beseri Bilimler Binası Ön</div></a>  </li><li> <a href="/yer/95/beseri-(sosyal)-bilimler-binasi"><div class="name">Beşeri (Sosyal) Bilimler Binası</div></a>  </li><li> <a href="/yer/230/beseri-bilimler"><div class="name">Beşeri Bilimler</div></a>  </li><li> <a href="/yer/638/beseri-bilimler-binasi-derslikleri"><div class="name">Beşeri Bilimler Binası Derslikleri</div></a>  </li><li> <a href="/yer/328/beseri-bilimler-binasi-pc-salonu"><div class="name">Beşeri Bilimler Binası PC Salonu</div></a>  </li><li> <a href="/yer/295/beseri-bilimler-kantini"><div class="name">Beşeri Bilimler Kantini</div></a>  </li><li> <a href="/yer/496/beseri-bilimler-otoparki"><div class="name">Beşeri Bilimler Otoparkı</div></a>  </li><li> <a href="/yer/1019/beton-cerceve"><div class="name">Beton Çerçeve</div></a>  </li><li> <a href="/yer/1014/beton-tekne"><div class="name">Beton tekne</div></a>  </li><li> <a href="/yer/231/bidb"><div class="name">BİDB</div></a>  </li><li> <a href="/yer/341/bidb-otoparki"><div class="name">BİDB Otoparkı</div></a>  </li><li> <a href="/yer/954/bilardo-takimi"><div class="name">Bilardo Takımı</div></a>  </li><li> <a href="/yer/63/bilgi-islem-daire-baskanligi"><div class="name">Bilgi İşlem Daire Başkanlığı</div></a>  </li><li> <a href="/yer/679/bilgi-islem-daire-baskanligi-binasi-derslikleri"><div class="name">Bilgi İşlem Daire Başkanlığı Binası Derslikleri</div></a>  </li><li> <a href="/yer/682/bilgi-islem-daire-baskanligi-kiosklari"><div class="name">Bilgi İşlem Daire Başkanlığı Kioskları</div></a>  </li><li> <a href="/yer/632/bilgi-transfer-ofisi"><div class="name">Bilgi Transfer Ofisi</div></a>  </li><li> <a href="/yer/524/bilgisayar-destekli-tasarim,-imalat-ve-robotik-arastirma-ve-uygulama-merkezi-(biltir)"><div class="name">Bilgisayar Destekli Tasarım, İmalat ve Robotik Araştırma ve Uygulama Merkezi (BİLTİR)</div></a>  </li><li> <a href="/yer/596/bilgisayar-muhendisligi"><div class="name">Bilgisayar Mühendisliği</div></a>  </li><li> <a href="/yer/66/bilgisayar-muhendisligi-bolumu"><div class="name">Bilgisayar Mühendisliği Bölümü</div></a>  </li><li> <a href="/yer/1028/bilgisayar-muhendisligi-bolumu"><div class="name">Bilgisayar Mühendisliği Bölümü</div></a>  </li><li> <a href="/yer/650/bilgisayar-muhendisligi-bolumu-binasi-derslikleri"><div class="name">Bilgisayar Mühendisliği Bölümü Binası Derslikleri</div></a>  </li><li> <a href="/yer/312/bilgisayar-muhendisligi-bolumu-kantini"><div class="name">Bilgisayar Mühendisliği Bölümü Kantini</div></a>  </li><li> <a href="/yer/863/bilgisayar-toplulugu"><div class="name">Bilgisayar Topluluğu</div></a>  </li><li> <a href="/yer/233/bilgisayar-ve-ogretim-teknolojileri-egitimi-bolumu"><div class="name">Bilgisayar ve Öğretim Teknolojileri Eğitimi Bölümü</div></a>  </li><li> <a href="/yer/676/bilgisayar-ve-ogretim-teknolojileri-egitimi-bolumu-binasi-derslikleri"><div class="name">Bilgisayar ve Öğretim Teknolojileri Eğitimi Bölümü Binası Derslikleri</div></a>  </li><li> <a href="/yer/550/bilgisayar-ve-ogretim-teknolojileri-egitimi-otoparki"><div class="name">Bilgisayar ve Öğretim Teknolojileri Eğitimi Otoparkı</div></a>  </li><li> <a href="/yer/551/bilgisayar-ve-ogretim-teknolojileri-egitimi-otoparki-2"><div class="name">Bilgisayar ve Öğretim Teknolojileri Eğitimi Otoparkı-2</div></a>  </li><li> <a href="/yer/1006/bilim-agaci"><div class="name">Bilim Ağacı</div></a>  </li><li> <a href="/yer/1002/bilim-kizi"><div class="name">Bilim Kızı</div></a>  </li><li> <a href="/yer/864/bilim-kurgu-ve-fantazi-toplulugu"><div class="name">Bilim Kurgu ve Fantazi Topluluğu</div></a>  </li><li> <a href="/yer/865/bilim-ve-gelecek-toplulugu"><div class="name">Bilim ve Gelecek Topluluğu</div></a>  </li><li> <a href="/yer/345/bilim-ve-teknoloji-muzesi"><div class="name">Bilim ve Teknoloji Müzesi</div></a>  </li><li> <a href="/yer/617/bilim-ve-teknoloji-muzesi"><div class="name">Bilim ve Teknoloji Müzesi</div></a>  </li><li> <a href="/yer/360/bilim-ve-teknoloji-muzesi-otobus-duragi"><div class="name">Bilim ve Teknoloji Müzesi Otobüs Durağı</div></a>  </li><li> <a href="/yer/804/bilim,-teknoloji,-muhendislik-ve-matematik-egitimi-uygulama-ve-arastirma-merkezi-(biltemm)"><div class="name">Bilim, Teknoloji, Mühendislik ve Matematik Eğitimi Uygulama ve Araştırma Merkezi (BİLTEMM)</div></a>  </li><li> <a href="/yer/996/bilimin-cocuk-dili-toplulugu"><div class="name">Bilimin Çocuk Dili Topluluğu</div></a>  </li><li> <a href="/yer/799/bilisim-ve-inovasyon-merkezi"><div class="name">Bilişim ve İnovasyon Merkezi</div></a>  </li><li> <a href="/yer/748/bilkent-metro-cikisi"><div class="name">Bilkent Metro Çıkışı</div></a>  </li><li> <a href="/yer/531/biltir-carpisma-laboratuvari"><div class="name">Biltir Çarpışma Laboratuvarı</div></a>  </li><li> <a href="/yer/466/biltir-otoparki"><div class="name">BİLTİR Otoparkı</div></a>  </li><li> <a href="/yer/939/bisiklet-takimi"><div class="name">Bisiklet Takımı</div></a>  </li><li> <a href="/yer/866/biyoloji-ve--genetik-toplulugu"><div class="name">Biyoloji ve  Genetik Topluluğu</div></a>  </li><li> <a href="/yer/65/biyolojik-bilimler-bolumu"><div class="name">Biyolojik Bilimler Bölümü</div></a>  </li><li> <a href="/yer/592/biyolojik-bilimler-bolumu"><div class="name">Biyolojik Bilimler Bölümü</div></a>  </li><li> <a href="/yer/639/biyolojik-bilimler-bolumu-binasi-derslikleri"><div class="name">Biyolojik Bilimler Bölümü Binası Derslikleri </div></a>  </li><li> <a href="/yer/322/biyolojik-bilimler-bolumu-kantini"><div class="name">Biyolojik Bilimler Bölümü Kantini</div></a>  </li><li> <a href="/yer/495/biyolojik-bilimler-bolumu-otoparki"><div class="name">Biyolojik Bilimler Bölümü Otoparkı</div></a>  </li><li> <a href="/yer/630/biyomalzeme-ve-doku-muhendisligi-uygulama-ve-arastirma-merkezi-(biomaten)"><div class="name">Biyomalzeme ve Doku Mühendisliği Uygulama ve Araştırma Merkezi (BİOMATEN)</div></a>  </li><li> <a href="/yer/234/bote"><div class="name">BÖTE</div></a>  </li><li> <a href="/yer/971/bric-toplulugu-ve-takimi"><div class="name">Briç Topluluğu ve takımı</div></a>  </li><li> <a href="/yer/585/burs-ve-yardim-ofisi"><div class="name">Burs ve Yardım Ofisi</div></a>  </li><li> <a href="/yer/1029/buyuk-spor-salonu"><div class="name">Buyuk Spor Salonu</div></a>  </li><li> <a href="/yer/940/buz-hokeyi-takimi"><div class="name">Buz Hokeyi Takımı</div></a>  </li><li> <a href="/yer/604/buyuk-spor-salonu"><div class="name">Büyük Spor Salonu</div></a>  </li><li> <a href="/yer/1106/buyuk-spor-salonu"><div class="name">Büyük Spor Salonu</div></a>  </li><li> <a href="/yer/842/buyuk-spor-salonu-otobus-duragi"><div class="name">Büyük Spor Salonu Otobüs Durağı</div></a>  </li><li> <a href="/yer/1115/cabir-bin-hayyan"><div class="name">Cabir Bin Hayyan</div></a>  </li><li> <a href="/yer/1100/cami"><div class="name">Cami</div></a>  </li><li> <a href="/yer/972/cankurtarma-ve-ilk-yardim-toplulugu"><div class="name">Cankurtarma ve ilk yardım Topluluğu</div></a>  </li><li> <a href="/yer/930/capoeira-toplulugu"><div class="name">Capoeira Topluluğu</div></a>  </li><li> <a href="/yer/868/caz--toplulugu"><div class="name">Caz  Topluluğu</div></a>  </li><li> <a href="/yer/1128/charles-darwin"><div class="name">Charles Darwin</div></a>  </li><li> <a href="/yer/941/cimnastik-takimi"><div class="name">Cimnastik Takımı</div></a>  </li><li> <a href="/yer/867/cagdas-dans-toplulugu"><div class="name">Çağdaş Dans Topluluğu</div></a>  </li><li> <a href="/yer/154/carsi"><div class="name">Çarşı</div></a>  </li><li> <a href="/yer/574/carsi"><div class="name">Çarşı</div></a>  </li><li> <a href="/yer/791/carsi-is-bankasi-atm/netmatik"><div class="name">Çarşı İş Bankası ATM/Netmatik</div></a>  </li><li> <a href="/yer/439/carsi-otoparki"><div class="name">Çarşı Otoparkı</div></a>  </li><li> <a href="/yer/74/cati-cafe"><div class="name">Çatı Cafe</div></a>  </li></ul>
+					<div id="side_bar"></div>
+				</ul>
+
+				<ul class="categories_ul">
+										<li>
+						<img src="/images/3.png" alt="">
+						<a data-type="3">
+							<div>Akademik Binalar</div>
+						</a></li>
+					<li>
+						<img src="/images/32.png" alt="">
+						<a data-type="32">
+							<div>İdari Binalar</div>
+						</a></li>
+					<li>
+						<img src="/images/10.png" alt="">
+						<a data-type="10">
+							<div>Konferans Salonları</div>
+						</a></li>
+					<li>
+						<img src="/images/16.png" alt="">
+						<a data-type="16">
+							<div>Kütüphaneler</div>
+						</a></li>
+					<li>
+						<img src="/images/29.png" alt="">
+						<a data-type="29">
+							<div>Derslikler</div>
+						</a></li>
+					<li>
+						<img src="/images/9.png" alt="">
+						<a data-type="9">
+							<div>Yurt ve Misafirhaneler</div>
+						</a></li>
+					<li>
+						<img src="/images/31.png" alt="">
+						<a data-type="31">
+							<div>Lojmanlar</div>
+						</a></li>
+					<li>
+						<img src="/images/21.png" alt="">
+						<a data-type="21">
+							<div>Yuva ve Kolej</div>
+						</a></li>
+					<li>
+						<img src="/images/26.png" alt="">
+						<a data-type="26">
+							<div>Müzeler</div>
+						</a></li>
+					<li>
+						<img src="/images/27.png" alt="">
+						<a data-type="27">
+							<div>Araştırma Birimleri</div>
+						</a></li>
+					<li>
+						<img src="/images/11.png" alt="">
+						<a data-type="11">
+							<div>Sağlık Birimleri</div>
+						</a></li>
+					<li>
+						<img src="/images/12.png" alt="">
+						<a data-type="12">
+							<div>Yerleşke Girişleri</div>
+						</a></li>
+					<li>
+						<img src="/images/7.png" alt="">
+						<a data-type="7">
+							<div>Otoparklar</div>
+						</a></li>
+					<li>
+						<img src="/images/23.png" alt="">
+						<a data-type="23">
+							<div>Duraklar</div>
+						</a></li>
+<!--
+					<li>
+						<img src="/images/33.png" alt="">
+						<a data-type="33">
+							<div>METU-CAM</div>
+						</a></li>
+-->						
+					<li>
+						<img src="/images/25.png" alt="">
+						<a data-type="25">
+							<div>Bilgisayar Laboratuvarlari</div>
+						</a></li>
+					<li>
+						<img src="/images/24.png" alt="">
+						<a data-type="24">
+							<div>İç Mekan Kablosuz İnternet Alanları</div>
+						</a></li>
+					<li>
+						<img src="/images/37.png" alt="">
+						<a data-type="37">
+							<div>Dış Mekan Kablosuz İnternet Alanları</div>
+						</a></li>
+					<li>
+						<img src="/images/30.png" alt="">
+						<a data-type="30">
+							<div>Kiosklar</div>
+						</a></li>
+					<li>
+						<img src="/images/19.png" alt="">
+						<a data-type="19">
+							<div>Teknokent</div>
+						</a></li>
+					<li>
+						<img src="/images/13.png" alt="">
+						<a data-type="13">
+							<div>Bankalar</div>
+						</a></li>
+					<li>
+						<img src="/images/5.png" alt="">
+						<a data-type="5">
+							<div>ATM'ler</div>
+						</a></li>
+					<li>
+						<img src="/images/34.png" alt="">
+						<a data-type="34">
+							<div>Netmatik</div>
+						</a></li>
+					<li>
+						<img src="/images/14.png" alt="">
+						<a data-type="14">
+							<div>PTT</div>
+						</a></li>
+					<li>
+						<img src="/images/6.png" alt="">
+						<a data-type="6">
+							<div>Spor Alanları</div>
+						</a></li>
+					<li>
+						<img src="/images/35.png" alt="">
+						<a data-type="35">
+							<div>Öğrenci Topluluk ve Takımları</div>
+						</a></li>
+					<li>
+						<img src="/images/17.png" alt="">
+						<a data-type="17">
+							<div>Alışveriş Mekanları</div>
+						</a></li>
+					<li>
+						<img src="/images/8.png" alt="">
+						<a data-type="8">
+							<div>Yeme-İçme Alanları</div>
+						</a></li>
+					<li>
+						<img src="/images/36.png" alt="">
+						<a data-type="36">
+							<div>Yapıtlar</div>
+						</a></li>
+					<li>
+						<img src="/images/28.png" alt="">
+						<a data-type="28">
+							<div>Diğer</div>
+						</a></li>
+
+					<li class="line exception">
+						<img src="/images/ringler.png" alt="sampleicon">
+						<a href="//rota.metu.edu.tr/rota/1" target="_blank">
+							<div>Ringler</div>
+						</a></li>
+					<li class="exception">
+						<img src="/images/semtservis.png" alt="sampleicon">
+						<a href="//rota.metu.edu.tr/rota/2" target="_blank">
+							<div>Semt Servisleri</div>
+						</a></li>
+<!--					<li class="exception">
+						<img src="/images/semtservis.png" alt="sampleicon">
+						<a href='//rota.metu.edu.tr/rota/4' target="_blank">
+							<div>6.20 Semt Servisleri</div>
+						</a></li> 
+-->
+					<li class="exception">
+						<img src="/images/ulasim.png" alt="sampleicon">
+						<a href="//rota.metu.edu.tr/rota/3" target="_blank">
+							<div>ODTÜ'ye Ulaşım</div>
+						</a></li>
+					<br><br>
+
+					
+				</ul>
+
+
+			<div class="ps-scrollbar-x-rail" style="left: 0px; bottom: 3px;"><div class="ps-scrollbar-x" style="left: 0px; width: 0px;"></div></div><div class="ps-scrollbar-y-rail" style="top: 0px; height: 581px; right: 3px;"><div class="ps-scrollbar-y" style="top: 0px; height: 189px;"></div></div></div>
+			<!--end list-wrap-->
+		</div>
+		<!--end list-left-->
+
+
+	</div>
+	<!--end sidebar-->
+
+	<div id="result">
+	<script>
+	createMarker(39.8957773778439,32.7800273895264,"Biyolojik Bilimler Bölümü",3,"Biyolojik Bilimler Bölümü<br /><br /><a href='http://www.bio.metu.edu.tr' target='_blank'>www.bio.metu.edu.tr</a>",19,25,65,"biyolojik-bilimler-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8919414864205,32.7831387519836,"Bilgisayar Mühendisliği Bölümü",3,"Bilgisayar Mühendisliği Bölümü<br /><br /><a href='http://www.ceng.metu.edu.tr/' target='_blank'>www.ceng.metu.edu.tr</a>",19,25,66,"bilgisayar-muhendisligi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8931597756297,32.7828919887543,"Kimya Bölümü",3,"Kimya Bölümü<br /><br /><a href='http://www.chem.metu.edu.tr/' target='_blank'>www.chem.metu.edu.tr</a>",19,25,75,"kimya-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8968544431093,32.7818577651978,"Mimarlık Fakültesi",3,"Mimarlık Fakültesi<br /><br /><a href='http://www.arch.metu.edu.tr/' target='_blank'>www.arch.metu.edu.tr</a>",19,25,77,"mimarlik-fakultesi");		
+		
+	</script>
+	<script>
+	createMarker(39.8983125702178,32.7827417850494,"İktisadi ve İdari Bilimler Fakültesi-1",3,"İktisadi ve İdari Bilimler Fakültesi-1<br /><br /><a href='http://www.feas.metu.edu.tr/' target='_blank'>www.feas.metu.edu.tr</a>",19,25,78,"iktisadi-ve-idari-bilimler-fakultesi-1");		
+		
+	</script>
+	<script>
+	createMarker(39.8989051990667,32.7784931659698,"İktisadi ve İdari Bilimler Fakültesi-2",3,"İktisadi ve İdari Bilimler Fakültesi-2<br /><br /><a href='http://www.feas.metu.edu.tr/' target='_blank'>www.feas.metu.edu.tr</a>",19,25,79,"iktisadi-ve-idari-bilimler-fakultesi-2");		
+		
+	</script>
+	<script>
+	createMarker(39.8934519971862,32.7818030118942,"İstatistik Bölümü",3,"İstatistik Bölümü<br /><br /><a href='http://www.stat.metu.edu.tr/' target='_blank'>www.stat.metu.edu.tr</a>",19,25,91,"istatistik-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8942874970168,32.7818191051483,"Fizik Bölümü",3,"Fizik Bölümü<br /><br /><a href='http://www.physics.metu.edu.tr/' target='_blank'>www.physics.metu.edu.tr</a>",19,25,92,"fizik-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8956868335247,32.7823984622955,"Matematik Bölümü",3,"Matematik Bölümü<br /><br /><a href='http://www.math.metu.edu.tr/' target='_blank'>www.math.metu.edu.tr</a>",19,25,93,"matematik-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.896246560128,32.7819693088531,"Beşeri (Sosyal) Bilimler Binası",3,"Beşeri (Sosyal) Bilimler Binası<br /><br />",19,25,95,"beseri-(sosyal)-bilimler-binasi");		
+		
+	</script>
+	<script>
+	createMarker(39.8923530730348,32.7834284305573,"Merkez Mühendislik Binası",3,"Merkez Mühendislik Binası<br /><br />",19,25,97,"merkez-muhendislik-binasi");		
+		
+	</script>
+	<script>
+	createMarker(39.8914640428517,32.7821838855743,"Elektrik ve Elektronik Mühendisliği Bölümü",3,"Elektrik ve Elektronik Mühendisliği Bölümü<br /><br /><a href='http://www.eee.metu.edu.tr/' target='_blank'>www.eee.metu.edu.tr</a>",19,25,98,"elektrik-ve-elektronik-muhendisligi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8869199307265,32.7831416129629,"Çevre Mühendisliği Bölümü",3,"Çevre Mühendisliği Bölümü<br /><br /><a href='http://www.enve.metu.edu.tr/' target='_blank'>www.enve.metu.edu.tr</a>",19,25,109,"cevre-muhendisligi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.886014365143,32.7826695441763,"Metalurji ve Malzeme Mühendisliği Bölümü",3,"Metalurji ve Malzeme Mühendisliği Bölümü<br /><br /><a href='http://www.mete.metu.edu.tr/' target='_blank'>www.mete.metu.edu.tr</a>",19,25,110,"metalurji-ve-malzeme-muhendisligi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.886113154697,32.7814893722098,"Jeoloji Mühendisliği Bölümü",3,"Jeoloji Mühendisliği Bölümü<br /><br /><a href='http://www.geoe.metu.edu.tr/' target='_blank'>www.geoe.metu.edu.tr</a>",19,25,111,"jeoloji-muhendisligi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8858167856079,32.7805237769644,"Maden Mühendisliği Bölümü",3,"Maden Mühendisliği Bölümü<br /><br /><a href='http://www.mine.metu.edu.tr/' target='_blank'>www.mine.metu.edu.tr</a>",19,25,112,"maden-muhendisligi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8866564946996,32.7793436049978,"Petrol ve Doğalgaz Mühendisliği Bölümü",3,"Petrol ve Doğalgaz Mühendisliği Bölümü<br /><br /><a href='http://www.pete.metu.edu.tr/' target='_blank'>www.pete.metu.edu.tr</a>",19,25,113,"petrol-ve-dogalgaz-muhendisligi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8876443745811,32.7790861129324,"Gıda Mühendisliği Bölümü",3,"Gıda Mühendisliği Bölümü<br /><br /><a href='http://www.fde.metu.edu.tr/' target='_blank'>www.fde.metu.edu.tr</a>",19,25,114,"gida-muhendisligi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8846642269715,32.7782063483755,"Havacılık ve Uzay Mühendisliği Bölümü",3,"Havacılık ve Uzay Mühendisliği Bölümü<br /><br /><a href='http://www.ae.metu.edu.tr/' target='_blank'>www.ae.metu.edu.tr</a>",19,25,115,"havacilik-ve-uzay-muhendisligi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8922542924728,32.7780561446707,"Enformatik Enstitüsü",3,"Enformatik Enstitüsü<br /><br /><a href='http://www.ii.metu.edu.tr' target='_blank'>www.ii.metu.edu.tr</a>",19,25,121,"enformatik-enstitusu");		
+		
+	</script>
+	<script>
+	createMarker(39.9004855176079,32.7812962531607,"Yabancı Diller Yüksekokulu",3,"Yabancı Diller Yüksekokulu<br /><br /><a href='http://www.ydyom.metu.edu.tr/' target='_blank'>wwww.ydyom.metu.edu.tr/</a>",19,25,151,"yabanci-diller-yuksekokulu");		
+		
+	</script>
+	<script>
+	createMarker(39.8889285971455,32.7803721427699,"Makina Mühendisliği G Blok",3,"Makina Mühendisliği G Blok<br /><br /><a href='http://www.me.metu.edu.tr/' target='_blank'>www.me.metu.edu.tr</a>",19,25,195,"makina-muhendisligi-g-blok");		
+		
+	</script>
+	<script>
+	createMarker(39.8898505882528,32.7802863120814,"Makina Mühendisliği E Blok",3,"Makina Mühendisliği E Blok<br /><br /><a href='http://www.me.metu.edu.tr/' target='_blank'>www.me.metu.edu.tr</a>",19,25,196,"makina-muhendisligi-e-blok");		
+		
+	</script>
+	<script>
+	createMarker(39.8901140120058,32.780200481393,"Makina Mühendisliği D Blok",3,"Makina Mühendisliği D Blok<br /><br /><a href='http://www.me.metu.edu.tr/' target='_blank'>www.me.metu.edu.tr</a>",19,25,197,"makina-muhendisligi-d-blok");		
+		
+	</script>
+	<script>
+	createMarker(39.8890109182842,32.7823247909328,"Makina Mühendisliği B Blok",3,"Makina Mühendisliği B Blok<br /><br /><a href='http://www.me.metu.edu.tr/' target='_blank'>www.me.metu.edu.tr</a>",19,25,198,"makina-muhendisligi-b-blok");		
+		
+	</script>
+	<script>
+	createMarker(39.8894472186692,32.7820672988673,"Makina Mühendisliği C Blok",3,"Makina Mühendisliği C Blok<br /><br /><a href='http://www.me.metu.edu.tr/' target='_blank'>www.me.metu.edu.tr</a>",19,25,199,"makina-muhendisligi-c-blok");		
+		
+	</script>
+	<script>
+	createMarker(39.889521307138,32.7825822829982,"Makina Mühendisliği A Blok",3,"Makina Mühendisliği A Blok<br /><br /><a href='http://www.me.metu.edu.tr/' target='_blank'>www.me.metu.edu.tr</a>",19,25,200,"makina-muhendisligi-a-blok");		
+		
+	</script>
+	<script>
+	createMarker(39.9015884266627,32.773614406542,"Bilgisayar ve Öğretim Teknolojileri Eğitimi Bölümü",3,"Bilgisayar ve Öğretim Teknolojileri Eğitimi Bölümü<br /><br /><a href='http://ceit.metu.edu.tr/' target='_blank'>www.ceit.metu.edu.tr</a>",19,25,233,"bilgisayar-ve-ogretim-teknolojileri-egitimi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.9006665934468,32.7764253615896,"Eğitim Fakültesi",3,"Eğitim Fakültesi<br /><br /><a href='http://www.fedu.metu.edu.tr/' target='_blank'>www.fedu.metu.edu.tr</a>",19,25,236,"egitim-fakultesi");		
+		
+	</script>
+	<script>
+	createMarker(39.8924189266637,32.7819600105067,"Endüstri Mühendisliği Bölümü",3,"Endüstri Mühendisliği Bölümü<br /><br /><a href='http://www.ie.metu.edu.tr/' target='_blank'>www.ie.metu.edu.tr</a>",19,25,238,"endustri-muhendisligi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8949542432693,32.7824964523097,"Fizik Bölümü Üçlü Amfi",3,"Fizik Bölümü Üçlü Amfi<br /><br />Derslikler: U1, U2, U3",19,25,243,"fizik-bolumu-uclu-amfi");		
+		
+	</script>
+	<script>
+	createMarker(39.8948472350484,32.781820535638,"Fizik Bölümü P Binası",3,"Fizik Bölümü P Binası<br /><br />Derslikler: P1, P2, P3, P4, P5, P6",19,25,244,"fizik-bolumu-p-binasi");		
+		
+	</script>
+	<script>
+	createMarker(39.8905009138078,32.7836766242763,"İnşaat Mühendisliği Bölümü K1 Binası",3,"İnşaat Mühendisliği Bölümü K1 Binası<br /><br />",19,25,253,"insaat-muhendisligi-bolumu-k1-binasi");		
+		
+	</script>
+	<script>
+	createMarker(39.8895048430407,32.7839984893581,"İnşaat Mühendisliği Bölümü",3,"İnşaat Mühendisliği Bölümü<br /><br /><a href='http://www.ce.metu.edu.tr/' target='_blank'>www.ce.metu.edu.tr</a>",19,25,254,"insaat-muhendisligi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8884264360583,32.7824857234737,"Kimya Mühendisliği Bölümü D Blok",3,"Kimya Mühendisliği Bölümü D Blok<br /><br /><a href='http://www.che.metu.edu.tr/' target='_blank'>www.che.metu.edu.tr</a>",19,25,388,"kimya-muhendisligi-bolumu-d-blok");		
+		
+	</script>
+	<script>
+	createMarker(39.8879901291766,32.7821102142116,"Kimya Mühendisliği Bölümü A blok",3,"Kimya Mühendisliği Bölümü A blok<br /><br /><a href='http://www.che.metu.edu.tr/' target='_blank'>www.che.metu.edu.tr</a>",19,25,389,"kimya-muhendisligi-bolumu-a-blok");		
+		
+	</script>
+	<script>
+	createMarker(39.8878172520968,32.7825708389173,"Kimya Mühendisliği Bölümü B blok",3,"Kimya Mühendisliği Bölümü B blok<br /><br /><a href='http://www.che.metu.edu.tr/' target='_blank'>www.che.metu.edu.tr</a>",19,25,390,"kimya-muhendisligi-bolumu-b-blok");		
+		
+	</script>
+	<script>
+	createMarker(39.8880477547729,32.7828290462276,"Kimya Mühendisliği Bölümü C Blok",3,"Kimya Mühendisliği Bölümü C Blok<br /><br /><a href='http://www.che.metu.edu.tr/' target='_blank'>www.che.metu.edu.tr</a>",19,25,391,"kimya-muhendisligi-bolumu-c-blok");		
+		
+	</script>
+	<script>
+	createMarker(39.8875990970644,32.7830804586301,"Kimya Mühendisliği Bölümü E Blok",3,"Kimya Mühendisliği Bölümü E Blok<br /><br /><a href='http://www.che.metu.edu.tr/' target='_blank'>www.che.metu.edu.tr</a>",19,25,392,"kimya-muhendisligi-bolumu-e-blok");		
+		
+	</script>
+	<script>
+	createMarker(39.8956580239434,32.7833433151136,"Müzik ve Güzel Sanatlar Bölümü",3,"Müzik ve Güzel Sanatlar Bölümü<br /><br /><a href='http://mgsb.metu.edu.tr/' target='_blank'>mgsb.metu.edu.tr</a>",19,25,395,"muzik-ve-guzel-sanatlar-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8967445483367,32.7823562621961,"Mimarlık Amfisi",3,"Mimarlık Amfisi<br /><br />",19,25,398,"mimarlik-amfisi");		
+		
+	</script>
+	<script>
+	createMarker(39.9000492874855,32.7800710201154,"Temel İngilizce Bölümü Lisans Laboratuvarı ve İlavesi",3,"Temel İngilizce Bölümü Lisans Laboratuvarı ve İlavesi<br /><br /><a href='http://www.dbe.metu.edu.tr/' target='_blank'>www.dbe.metu.edu.tr</a>",19,25,399,"temel-ingilizce-bolumu-lisans-laboratuvari-ve-ilavesi");		
+		
+	</script>
+	<script>
+	createMarker(39.900497863703,32.7802319526563,"Hazırlık Okulu Sınıflar Bloğu",3,"Hazırlık Okulu Sınıflar Bloğu<br /><br />",19,25,400,"hazirlik-okulu-siniflar-blogu");		
+		
+	</script>
+	<script>
+	createMarker(39.9001398260412,32.7789144515555,"Hazırlık Yeni Sınıflar Bloğu 1-2-3-4",3,"Hazırlık Yeni Sınıflar Bloğu 1-2-3-4<br /><br />",19,25,402,"hazirlik-yeni-siniflar-blogu-1-2-3-4");		
+		
+	</script>
+	<script>
+	createMarker(39.8841291038757,32.7779474258205,"Havacılık ve Uzay Mühendisliği Bölümü Hangar Binası",3,"Havacılık ve Uzay Mühendisliği Bölümü Hangar Binası<br /><br />",19,25,409,"havacilik-ve-uzay-muhendisligi-bolumu-hangar-binasi");		
+		
+	</script>
+	<script>
+	createMarker(39.8894883789395,32.7802233695547,"Makina Mühendisliği F Blok",3,"Makina Mühendisliği F Blok<br /><br /><a href='http://www.me.metu.edu.tr/' target='_blank'>www.me.metu.edu.tr</a>",19,25,410,"makina-muhendisligi-f-blok");		
+		
+	</script>
+	<script>
+	createMarker(39.8905955809374,32.7825815677534,"Elektrik ve Elektronik Mühendisliği",3,"Elektrik ve Elektronik Mühendisliği<br /><br />",19,25,411,"elektrik-ve-elektronik-muhendisligi");		
+		
+	</script>
+	<script>
+	createMarker(39.9021522203302,32.7731609344482,"Yabanci Diller Eğitimi Bölümü",3,"Yabanci Diller Eğitimi Bölümü<br /><br /><a href='http://www.fle.metu.edu.tr/' target='_blank'>http://www.fle.metu.edu.tr/</a>",19,25,580,"yabanci-diller-egitimi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8943945061116,32.7826344966888,"Uygulamalı Matematik Enstitüsü",3,"Uygulamalı Matematik Enstitüsü<br /><br /><a href='http://iam.metu.edu.tr/' target='_blank'>iam.metu.edu.tr</a>",19,25,583,"uygulamali-matematik-enstitusu");		
+		
+	</script>
+	<script>
+	createMarker(39.8944274319533,32.7826988697052,"Arkeometri Bölümü",3,"Arkeometri Bölümü<br /><br /><a href='http://arme.metu.edu.tr/' target='_blank'>arme.metu.edu.tr</a>",19,25,584,"arkeometri-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8944315476824,32.7826076745987,"Modern Diller Bölümü",3,"Modern Diller Bölümü<br /><br /><a href='http://mld.metu.edu.tr/' target='_blank'>mld.metu.edu.tr</a>",19,25,586,"modern-diller-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8900563881463,32.7818888425827,"Türk Dili Bölümü",3,"Türk Dili Bölümü<br /><br /><a href='http://turk.metu.edu.tr/' target='_blank'>turk.metu.edu.tr</a>",19,25,631,"turk-dili-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8969544431093,32.7813577651978,"Mimarlık Bölümü",3,"Mimarlık Bölümü<br /><br /><a href='http://www.archweb.metu.edu.tr/' target='_blank'>www.archweb.metu.edu.tr</a>",19,25,806,"mimarlik-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8975544431093,32.7815577651978,"Şehir ve Bölge Planlama Bölümü",3,"Şehir ve Bölge Planlama Bölümü<br /><br /><a href='http://crp.metu.edu.tr/' target='_blank'>crp.metu.edu.tr</a>",19,25,807,"sehir-ve-bolge-planlama-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.896993,32.781426,"Endüstri Ürünleri Tasarımı Bölümü",3,"Endüstri Ürünleri Tasarımı Bölümü<br /><br /><a href='http://id.metu.edu.tr/' target='_blank'>id.metu.edu.tr</a>",19,25,808,"endustri-urunleri-tasarimi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.896498560128,32.7817083088531,"Tarih Bölümü",3,"Tarih Bölümü<br /><br /><a href='http://hist.metu.edu.tr/' target='_blank'>http://hist.metu.edu.tr/</a>",19,25,809,"tarih-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.8964,32.7817,"Felsefe Bölümü",3,"Felsefe Bölümü<br /><br /><a href='http://phil.metu.edu.tr/' target='_blank'>http://phil.metu.edu.tr/</a>",19,25,810,"felsefe-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.89642,32.7818,"Psikoloji Bölümü",3,"Psikoloji Bölümü<br /><br /><a href='http://psy.metu.edu.tr/' target='_blank'>http://psy.metu.edu.tr/</a>",19,25,811,"psikoloji-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.896445,32.78155,"Sosyoloji Bölümü",3,"Sosyoloji Bölümü<br /><br /><a href='http://soc.metu.edu.tr/' target='_blank'>http://soc.metu.edu.tr/</a>",19,25,812,"sosyoloji-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.898655,32.778783,"İşletme Bölümü",3,"İşletme Bölümü<br /><br /><a href='http://ba.metu.edu.tr/' target='_blank'>http://ba.metu.edu.tr/</a>",19,25,813,"isletme-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.89834,32.782605,"İktisat Bölümü",3,"İktisat Bölümü<br /><br /><a href='http://econ.metu.edu.tr/' target='_blank'>http://econ.metu.edu.tr/</a>",19,25,814,"iktisat-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.89828,32.77887,"Uluslararası İlişkiler Bölümü",3,"Uluslararası İlişkiler Bölümü<br /><br /><a href='http://ir.metu.edu.tr/' target='_blank'>http://ir.metu.edu.tr/</a>",19,25,815,"uluslararasi-iliskiler-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.898342,32.782605,"Siyaset Bilimi ve Kamu Yönetimi Bölümü",3,"Siyaset Bilimi ve Kamu Yönetimi Bölümü<br /><br /><a href='http://padm.metu.edu.tr/' target='_blank'>http://padm.metu.edu.tr/</a>",19,25,816,"siyaset-bilimi-ve-kamu-yonetimi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.9007,32.776333,"Eğitim Bilimleri Bölümü",3,"Eğitim Bilimleri Bölümü<br /><br /><a href='http://eds.metu.edu.tr/' target='_blank'>http://eds.metu.edu.tr/</a><br>Eğitim Fakültesi, 3. Kat",19,25,817,"egitim-bilimleri-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.900727,32.776368,"Temel Eğitim Bölümü",3,"Temel Eğitim Bölümü<br /><br /><a href='http://eece.metu.edu.tr/' target='_blank'>http://eece.metu.edu.tr/</a><br>Eğitim Fakültesi 1. kat",19,25,818,"temel-egitim-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.900692,32.776389,"Beden Eğitimi ve Spor Bölümü",3,"Beden Eğitimi ve Spor Bölümü<br /><br /><a href='http://pes.metu.edu.tr/' target='_blank'>http://pes.metu.edu.tr/</a><br>Eğitim Fakültesi, 4. kat",19,25,819,"beden-egitimi-ve-spor-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.90074,32.776438,"Matematik ve Fen Bilimleri Eğitimi Bölümü",3,"Matematik ve Fen Bilimleri Eğitimi Bölümü<br /><br /><a href='http://mse.metu.edu.tr/' target='_blank'>http://mse.metu.edu.tr/</a><br>Eğitim Fakültesi 2. kat",19,25,820,"matematik-ve-fen-bilimleri-egitimi-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(36.566979,34.254975,"Deniz Bilimleri Enstitüsü",3,"Deniz Bilimleri Enstitüsü<br /><br /><a href='http://www.ims.metu.edu.tr/' target='_blank'>http://www.ims.metu.edu.tr/</a>",19,25,821,"deniz-bilimleri-enstitusu");		
+		
+	</script>
+	<script>
+	createMarker(39.892385,32.783609,"Mühendislik Fakültesi",3,"Mühendislik Fakültesi<br /><br /><a href='http://muhfd.metu.edu.tr/' target='_blank'>http://muhfd.metu.edu.tr/</a>",19,25,822,"muhendislik-fakultesi");		
+		
+	</script>
+	<script>
+	createMarker(39.892304,32.783567,"Mühendislik Bilimleri Bölümü",3,"Mühendislik Bilimleri Bölümü<br /><br /><a href='http://es.metu.edu.tr/' target='_blank'>http://es.metu.edu.tr/</a>",19,25,823,"muhendislik-bilimleri-bolumu");		
+		
+	</script>
+	<script>
+	createMarker(39.892625,32.783503,"Fen Bilimleri Enstitüsü",3,"Fen Bilimleri Enstitüsü<br /><br /><a href='http://fbe.metu.edu.tr/' target='_blank'>http://fbe.metu.edu.tr/</a>",19,25,824,"fen-bilimleri-enstitusu");		
+		
+	</script>
+	<script>
+	createMarker(39.892273,32.783693,"Sosyal Bilimler Enstitüsü",3,"Sosyal Bilimler Enstitüsü<br /><br /><a href='http://sbe.metu.edu.tr/' target='_blank'>http://sbe.metu.edu.tr/</a>",19,25,825,"sosyal-bilimler-enstitusu");		
+		
+	</script>
+	<script>
+	createMarker(39.892239,32.783748,"Akademik Yazı Merkezi",3,"Akademik Yazı Merkezi<br /><br /><a href='http://awc.metu.edu.tr/' target='_blank'>http://awc.metu.edu.tr/</a>",19,25,826,"akademik-yazi-merkezi");		
+		
+	</script>
+	<script>
+	createMarker(39.894553,32.78253,"Fen Edebiyat Fakültesi",3,"Fen Edebiyat Fakültesi<br /><br /><a href='http://fef.metu.edu.tr/' target='_blank'>http://fef.metu.edu.tr/</a>",19,25,827,"fen-edebiyat-fakultesi");		
+		
+	</script>
+	<script>
+	createMarker(39.90195,32.773171,"Meslek Yüksekokulu",3,"Meslek Yüksekokulu<br /><br /><a href='http://myo.metu.edu.tr/' target='_blank'>http://myo.metu.edu.tr/</a>",19,25,828,"meslek-yuksekokulu");		
+		
+	</script>
+</div>
+	<div id="map-canvas" class="leaflet-container leaflet-fade-anim" style="position: relative;" tabindex="0"><div class="leaflet-map-pane" style="transform: translate3d(0px, -113px, 0px);"><div class="leaflet-tile-pane"><div class="leaflet-layer"><div class="leaflet-tile-container"></div><div class="leaflet-tile-container leaflet-zoom-animated"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(393px, 190px, 0px);" src="https://a.tile.openstreetmap.org/16/38735/24835.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(393px, -66px, 0px);" src="https://c.tile.openstreetmap.org/16/38735/24834.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(137px, 190px, 0px);" src="https://c.tile.openstreetmap.org/16/38734/24835.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(649px, 190px, 0px);" src="https://b.tile.openstreetmap.org/16/38736/24835.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(393px, 446px, 0px);" src="https://b.tile.openstreetmap.org/16/38735/24836.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(137px, -66px, 0px);" src="https://b.tile.openstreetmap.org/16/38734/24834.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(649px, -66px, 0px);" src="https://a.tile.openstreetmap.org/16/38736/24834.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(137px, 446px, 0px);" src="https://a.tile.openstreetmap.org/16/38734/24836.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(649px, 446px, 0px);" src="https://c.tile.openstreetmap.org/16/38736/24836.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(-119px, 190px, 0px);" src="https://b.tile.openstreetmap.org/16/38733/24835.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(905px, 190px, 0px);" src="https://c.tile.openstreetmap.org/16/38737/24835.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(-119px, -66px, 0px);" src="https://a.tile.openstreetmap.org/16/38733/24834.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(905px, -66px, 0px);" src="https://b.tile.openstreetmap.org/16/38737/24834.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(-119px, 446px, 0px);" src="https://c.tile.openstreetmap.org/16/38733/24836.png"><img class="leaflet-tile leaflet-tile-loaded" style="height: 256px; width: 256px; transform: translate3d(905px, 446px, 0px);" src="https://a.tile.openstreetmap.org/16/38737/24836.png"></div></div></div><div class="leaflet-objects-pane"><div class="leaflet-shadow-pane"></div><div class="leaflet-overlay-pane"></div><div class="leaflet-marker-pane"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(501px, 270px, 0px); z-index: 270;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(646px, 503px, 0px); z-index: 503;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(635px, 429px, 0px); z-index: 429;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(586px, 205px, 0px); z-index: 205;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(627px, 116px, 0px); z-index: 116;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(429px, 80px, 0px); z-index: 80;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(584px, 411px, 0px); z-index: 411;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(585px, 361px, 0px); z-index: 361;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(611px, 275px, 0px); z-index: 275;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(591px, 242px, 0px); z-index: 242;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(660px, 478px, 0px); z-index: 478;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(601px, 532px, 0px); z-index: 532;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(646px, 808px, 0px); z-index: 808;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(624px, 863px, 0px); z-index: 863;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(569px, 857px, 0px); z-index: 857;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(524px, 875px, 0px); z-index: 875;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(469px, 824px, 0px); z-index: 824;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(457px, 764px, 0px); z-index: 764;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(416px, 945px, 0px); z-index: 945;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(409px, 484px, 0px); z-index: 484;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(560px, -16px, 0px); z-index: -16;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(517px, 686px, 0px); z-index: 686;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(513px, 630px, 0px); z-index: 630;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(509px, 614px, 0px); z-index: 614;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(608px, 681px, 0px); z-index: 681;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(596px, 654px, 0px); z-index: 654;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(620px, 650px, 0px); z-index: 650;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(202px, -83px, 0px); z-index: -83;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(333px, -27px, 0px); z-index: -27;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(591px, 474px, 0px); z-index: 474;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(616px, 320px, 0px); z-index: 320;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(585px, 327px, 0px); z-index: 327;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(671px, 590px, 0px); z-index: 590;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(686px, 651px, 0px); z-index: 651;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(616px, 717px, 0px); z-index: 717;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(598px, 743px, 0px); z-index: 743;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(620px, 753px, 0px); z-index: 753;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(632px, 740px, 0px); z-index: 740;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(643px, 767px, 0px); z-index: 767;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(656px, 277px, 0px); z-index: 277;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(610px, 211px, 0px); z-index: 211;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(503px, 11px, 0px); z-index: 11;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(511px, -17px, 0px); z-index: -17;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(449px, 5px, 0px); z-index: 5;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(404px, 977px, 0px); z-index: 977;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(510px, 652px, 0px); z-index: 652;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(620px, 585px, 0px); z-index: 585;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(181px, -117px, 0px); z-index: -117;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(622px, 354px, 0px); z-index: 354;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(626px, 352px, 0px); z-index: 352;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(621px, 352px, 0px); z-index: 352;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(588px, 618px, 0px); z-index: 618;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(563px, 198px, 0px); z-index: 198;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(572px, 162px, 0px); z-index: 162;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(566px, 196px, 0px); z-index: 196;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(579px, 226px, 0px); z-index: 226;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(579px, 232px, 0px); z-index: 232;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(584px, 231px, 0px); z-index: 231;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(572px, 229px, 0px); z-index: 229;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(443px, 95px, 0px); z-index: 95;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(621px, 114px, 0px); z-index: 114;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(447px, 118px, 0px); z-index: 118;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(621px, 114px, 0px); z-index: 114;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(329px, -29px, 0px); z-index: -29;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(330px, -31px, 0px); z-index: -31;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(331px, -29px, 0px); z-index: -29;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(334px, -31px, 0px); z-index: -31;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(69239px, 197824px, 0px); z-index: 197824;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(668px, 476px, 0px); z-index: 476;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(666px, 481px, 0px); z-index: 481;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(663px, 461px, 0px); z-index: 461;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(672px, 483px, 0px); z-index: 483;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(674px, 485px, 0px); z-index: 485;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(618px, 344px, 0px); z-index: 344;" tabindex="0"><img src="/images/mapicons/3.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-clickable" style="margin-left: -19.5px; margin-top: -26px; width: 39px; height: 52px; transform: translate3d(181px, -105px, 0px); z-index: -105;" tabindex="0"></div><div class="leaflet-popup-pane"></div></div></div><div class="leaflet-control-container"><div class="leaflet-top leaflet-left"><div class="leaflet-control-zoom leaflet-bar leaflet-control"><a class="leaflet-control-zoom-in" href="#" title="Zoom in">+</a><a class="leaflet-control-zoom-out" href="#" title="Zoom out">-</a></div></div><div class="leaflet-top leaflet-right"></div><div class="leaflet-bottom leaflet-left"></div><div class="leaflet-bottom leaflet-right"><div class="leaflet-control-attribution leaflet-control"><a href="http://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> | © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors</div></div></div></div>
+
+	<script>
+		var options = {
+			valueNames: ['name']
+		};
+		var userList = new List('categories', options);
+	</script>
+
+	<script>
+		$(".search_text").keypress(function(e) {
+			if (e.which == 45) {
+				return false;
+			}
+		});
+	</script>
+
+	<script>
+		$(".search_text").keyup(function() {
+			//console.log($(".search_text").val().length);
+			if ($(".search_text").val().length >= 1) {
+				$(".categories_ul ul,.building_list ul.list").removeClass("hide");
+			} else {
+				$(".categories_ul ul,.building_list ul.list").addClass("hide");
+			}
+		});
+	</script>
+
+	<script>
+		if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+			$(".list_left").addClass("toggled");
+			$(".list_left_close").addClass("toggled_button");
+			$("#map-canvas").addClass("leftState");
+
+			$(".list_left_close").click(function(e) {
+				$(".list_left").toggleClass("toggled");
+				$(".list_left_close").toggleClass("toggled_button");
+			});
+		} else {
+			$(".list_left_close").click(function(e) {
+				e.preventDefault();
+				$(".list_left").toggleClass("toggled");
+				$(".list_left_close").toggleClass("toggled_button");
+				$("#map-canvas").toggleClass("leftState");
+			});
+		}
+
+
+		/*google.maps.event.addListenerOnce(map, 'idle', function(){
+		    // do something only the first time the map is loaded
+		    //@mapCopyright - gets the google copyright tags
+		    var mapCopyright=document.getElementById('map-canvas').getElementsByTagName("a");   
+		        $(mapCopyright).click(function(){
+		            return false;
+		        });
+		    });*/
+	</script>
+
+
+
+</body></html>
